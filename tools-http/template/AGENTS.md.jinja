@@ -1,0 +1,47 @@
+# AGENTS.md
+
+Guidance for coding agents working in `{{ project_name }}`. `CLAUDE.md` imports this file.
+
+## Project
+
+{{ description.rstrip('.') }}. A typed Python {{ python_version }}+ MCP server (`{{ package_name }}`) that serves tools over streamable HTTP with the official `mcp` SDK, on `MCP_HOST`:`MCP_PORT` (default `127.0.0.1:8000`). `uv` is the only required tool: never use pip, virtualenv activation, or make.
+
+## Commands
+
+- Install or refresh the environment: `uv sync`
+- Serve the MCP server over HTTP: `uv run {{ project_name }}` (the endpoint is `/mcp`)
+- Test: `uv run pytest`
+- Lint: `uv run ruff check .`
+- Format: `uv run ruff format .` (check only: `uv run ruff format --check .`)
+- Type-check: `uv run mypy {{ package_name }} tests`
+
+## Layout
+
+- `{{ package_name }}/units.py`: plain conversion logic; no MCP or I/O code.
+- `{{ package_name }}/server.py`: the MCP server, its tools, and the HTTP entry point; a thin layer that calls the logic modules.
+- `tests/`: pytest suite. Tool tests go through `call(...)` in `tests/test_server.py`, which uses an in-process `mcp.Client`; the HTTP test runs the Starlette app from `streamable_http_app()` in process.
+- `pyproject.toml`: dependencies, the `dev` group, and all tool configuration.
+
+## Conventions
+
+- Type-annotate everything; mypy runs in strict mode and must stay clean.
+- Each tool is a typed function with a docstring. The model reads both, so keep them accurate.
+- Mark tools that change nothing with `ToolAnnotations(read_only_hint=True)`.
+- Raise `ToolError` for an expected failure so the client gets a clear error result. Other exceptions are reported as unexpected errors.
+- Do not change the default bind address (`127.0.0.1`) or add authentication-free exposure without asking first. The server has no authentication.
+- Add runtime dependencies with `uv add <package>` and tools with `uv add --dev <package>`; never edit `uv.lock` by hand.
+- The `mcp` dependency is pinned to the 2.x line. Check the installed SDK's API before changing server code, because the high-level names have changed between major versions.
+
+## Testing
+
+- Add or update tests with every behavior change, including the failure path.
+- Tests call tools through the server, not by calling the Python functions directly.
+- Tests must not use the network or real credentials.
+- Before reporting work as done, run the test, lint, format, and type-check commands above and report the real results.
+
+## Safety
+
+- Tools run with this server's own permissions, and anyone who can reach the HTTP port can call them. Declared annotations are hints for clients; they do not sandbox the code.
+- Never read, print, or commit `.env` files, tokens, or other secrets.
+- Do not change release configuration or dependency version bounds without asking first.
+- Prefer small, reviewable diffs; explain any change that touches more than one module.

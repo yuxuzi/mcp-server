@@ -1,0 +1,64 @@
+"""Tests for the MCP server, called through an in-process client session."""
+
+import asyncio
+from typing import Any
+
+import pytest
+from mcp import Client
+from mcp.types import CallToolResult, TextContent
+
+from {{ package_name }}.server import server
+
+
+def call(name: str, arguments: dict[str, Any]) -> CallToolResult:
+    """Call a tool through an in-process client session, as an MCP client would."""
+
+    async def run() -> CallToolResult:
+        async with Client(server) as client:
+            return await client.call_tool(name, arguments)
+
+    return asyncio.run(run())
+
+
+def text_of(result: CallToolResult) -> str:
+    """Return the text of the first content block of a tool result."""
+    block = result.content[0]
+    assert isinstance(block, TextContent)
+    return block.text
+
+
+def test_lists_the_example_tools_as_read_only() -> None:
+    async def run() -> list[Any]:
+        async with Client(server) as client:
+            return (await client.list_tools()).tools
+
+    tools = {tool.name: tool for tool in asyncio.run(run())}
+    assert sorted(tools) == ["convert_units", "word_count"]
+    assert tools["word_count"].description is not None
+    assert "Count the words" in tools["word_count"].description
+    assert tools["convert_units"].annotations is not None
+    assert tools["convert_units"].annotations.read_only_hint is True
+
+
+def test_word_count() -> None:
+    result = call("word_count", {"text": "one two  three"})
+    assert result.is_error is False
+    assert result.structured_content == {"result": 3}
+
+
+def test_convert_units() -> None:
+    result = call("convert_units", {"value": 2.5, "from_unit": "km", "to_unit": "m"})
+    assert result.is_error is False
+    assert result.structured_content is not None
+    assert result.structured_content["result"] == pytest.approx(2500.0)
+
+
+def test_unknown_unit_is_a_tool_error_with_a_clear_message() -> None:
+    result = call("convert_units", {"value": 1.0, "from_unit": "parsec", "to_unit": "m"})
+    assert result.is_error is True
+    assert "unknown unit 'parsec'" in text_of(result)
+
+
+def test_wrong_argument_type_is_rejected_by_the_schema() -> None:
+    result = call("word_count", {"text": 5})
+    assert result.is_error is True

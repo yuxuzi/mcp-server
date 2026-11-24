@@ -1,0 +1,29 @@
+profile:
+  type: str
+  choices: [tools, tools-http]
+project_name:
+  type: str
+package_name:
+  type: str
+  default: "{{ project_name | replace('-', '_') }}"
+description:
+  type: str
+  default: An MCP server exposing typed tools
+author:
+  type: str
+  default: Your Name
+email:
+  type: str
+  default: your@email.com
+python_version:
+  type: str
+  default: "3.11"
+  choices: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+license:
+  type: str
+  default: MIT
+components:
+  type: str
+  multiselect: true
+  choices: []
+  default: []

@@ -1,0 +1,44 @@
+# {{ project_name }}
+
+{{ description }}
+
+An MCP server over streamable HTTP. It exposes two example tools, `word_count` and `convert_units`. Replace them with your own typed functions.
+
+The server listens on `127.0.0.1:8000` by default. It has **no authentication**: anyone who can reach the port can call the tools. Keep it on localhost, or put it behind your own authentication and network controls before you change `MCP_HOST`.
+
+## Commands
+
+```bash
+uv sync                 # install dependencies
+uv run {{ project_name }}        # serve streamable HTTP on MCP_HOST:MCP_PORT (default 127.0.0.1:8000)
+uv run pytest           # run the tests, which call the tools in process
+uv run ruff check .     # lint
+uv run ruff format --check .
+uv run mypy {{ package_name }} tests
+```
+
+## Add it to an MCP client
+
+Start the server with `uv run {{ project_name }}`, then point your client at the endpoint `http://127.0.0.1:8000/mcp`. Clients that take a URL usually read a JSON file with an `mcpServers` object, and an entry for this server looks like this:
+
+```json
+{
+  "mcpServers": {
+    "{{ project_name }}": {
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}
+```
+
+Field names and transport options differ between clients, so check your client's documentation for the exact shape.
+
+## Layout
+
+- `{{ package_name }}/units.py`: plain conversion functions, with no MCP code.
+- `{{ package_name }}/server.py`: the MCP server and the HTTP entry point. Each tool is a typed function with a docstring, registered with `@server.tool()`.
+- `tests/`: tests that list and call the tools through an in-process client session, and one that runs the HTTP app in process.
+
+## Adding a tool
+
+Write a typed function with a docstring in `server.py`, decorate it with `@server.tool()`, and add a test in `tests/test_server.py` that calls it through `call(...)`. Raise `ToolError` for a failure you expect, so the client receives a clear error result.

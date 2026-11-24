@@ -1,0 +1,65 @@
+"""MCP server: the example tools over streamable HTTP, for clients that connect to a URL."""
+
+import os
+
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import ToolAnnotations
+
+from {{ package_name }} import units
+
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 8000
+
+server = MCPServer(
+    "{{ project_name }}",
+    instructions="Tools compute values from their arguments and change nothing.",
+)
+
+READ_ONLY = ToolAnnotations(read_only_hint=True)
+
+
+@server.tool(annotations=READ_ONLY)
+def word_count(text: str) -> int:
+    """Count the words in ``text``. Words are separated by whitespace."""
+    return len(text.split())
+
+
+@server.tool(annotations=READ_ONLY)
+def convert_units(value: float, from_unit: str, to_unit: str) -> float:
+    """Convert ``value`` between units of the same quantity, for example 2.5 km to m.
+
+    Supported units: m, km, cm, mm, ft, in, mi (length) and g, kg, lb, oz (mass).
+    Converting between a length and a mass is an error.
+    """
+    try:
+        return units.convert(value, from_unit, to_unit)
+    except units.UnitError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+def settings_from_env() -> tuple[str, int]:
+    """Return the (host, port) to listen on, from MCP_HOST and MCP_PORT.
+
+    Raises:
+        SystemExit: if MCP_PORT is not an integer from 1 to 65535.
+    """
+    host = os.environ.get("MCP_HOST", DEFAULT_HOST)
+    raw_port = os.environ.get("MCP_PORT", str(DEFAULT_PORT))
+    try:
+        port = int(raw_port)
+    except ValueError:
+        raise SystemExit(f"MCP_PORT must be an integer, got {raw_port!r}") from None
+    if not 1 <= port <= 65535:
+        raise SystemExit(f"MCP_PORT must be from 1 to 65535, got {port}")
+    return host, port
+
+
+def main() -> None:
+    """Serve streamable HTTP at /mcp on MCP_HOST:MCP_PORT (default 127.0.0.1:8000)."""
+    host, port = settings_from_env()
+    server.run("streamable-http", host=host, port=port)
+
+
+if __name__ == "__main__":
+    main()

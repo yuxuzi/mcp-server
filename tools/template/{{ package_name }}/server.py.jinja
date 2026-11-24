@@ -1,0 +1,42 @@
+"""MCP server: exposes the example tools over stdio, for any MCP client."""
+
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import ToolAnnotations
+
+from {{ package_name }} import units
+
+server = MCPServer(
+    "{{ project_name }}",
+    instructions="Tools compute values from their arguments and change nothing.",
+)
+
+READ_ONLY = ToolAnnotations(read_only_hint=True)
+
+
+@server.tool(annotations=READ_ONLY)
+def word_count(text: str) -> int:
+    """Count the words in ``text``. Words are separated by whitespace."""
+    return len(text.split())
+
+
+@server.tool(annotations=READ_ONLY)
+def convert_units(value: float, from_unit: str, to_unit: str) -> float:
+    """Convert ``value`` between units of the same quantity, for example 2.5 km to m.
+
+    Supported units: m, km, cm, mm, ft, in, mi (length) and g, kg, lb, oz (mass).
+    Converting between a length and a mass is an error.
+    """
+    try:
+        return units.convert(value, from_unit, to_unit)
+    except units.UnitError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+def main() -> None:
+    """Serve over stdio. Stdout carries the protocol, so never print to it."""
+    server.run()
+
+
+if __name__ == "__main__":
+    main()

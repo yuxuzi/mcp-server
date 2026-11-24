@@ -1,0 +1,30 @@
+"""Tests for the unit conversion functions."""
+
+import pytest
+
+from {{ package_name }}.units import UnitError, convert, supported_units
+
+
+def test_converts_within_a_quantity() -> None:
+    assert convert(2.5, "km", "m") == pytest.approx(2500.0)
+    assert convert(1.0, "ft", "in") == pytest.approx(12.0)
+
+
+def test_same_unit_is_unchanged() -> None:
+    assert convert(7.0, "kg", "kg") == pytest.approx(7.0)
+
+
+def test_unknown_unit_is_rejected_with_the_supported_list() -> None:
+    with pytest.raises(UnitError, match="unknown unit 'parsec'"):
+        convert(1.0, "parsec", "m")
+
+
+def test_mixed_quantities_are_rejected() -> None:
+    with pytest.raises(UnitError, match=r"cannot convert m \(length\) to kg \(mass\)"):
+        convert(1.0, "m", "kg")
+
+
+def test_supported_units_is_sorted_and_complete() -> None:
+    units = supported_units()
+    assert units == sorted(units)
+    assert "lb" in units and "mi" in units

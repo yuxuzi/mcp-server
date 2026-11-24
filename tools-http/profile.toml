@@ -1,0 +1,15 @@
+contract = 1
+id = "tools-http"
+name = "MCP server, streamable HTTP"
+description = "The same MCP server served over streamable HTTP on localhost, with tests that run its HTTP app in process."
+version = "1"
+kind = "service"
+status = "stable"
+supported_python = ["3.11", "3.12", "3.13", "3.14", "3.15"]
+dependencies = ["mcp>=2.3,<3"]
+questions = ["description", "author", "email", "python_version", "license"]
+lifecycle_commands = ["uv sync", "uv run ruff check .", "uv run ruff format --check .", "uv run mypy {package} tests", "uv run pytest"]
+security_posture = "Tools run with the server's own permissions. The example tools read only their input. The HTTP server has no authentication and binds to 127.0.0.1 by default; set MCP_HOST to another address only behind your own authentication and network controls. Anyone who can reach the port can call the tools. The checks do not review what your own tools do."
+
+[dependency_groups]
+dev = ["httpx2>=2.16", "mypy>=1.11", "pytest>=8.0", "ruff>=0.6"]

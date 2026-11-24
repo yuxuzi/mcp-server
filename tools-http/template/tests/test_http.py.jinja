@@ -1,0 +1,53 @@
+"""Tests for the streamable HTTP app, run in process with an ASGI transport (no sockets)."""
+
+import asyncio
+
+import httpx2
+import pytest
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
+
+from {{ package_name }}.server import server, settings_from_env
+
+# The Host header must carry the port, because the SDK checks it against localhost names.
+BASE_URL = "http://127.0.0.1:8000"
+
+
+async def _with_http_client() -> tuple[list[str], int, bool]:
+    app = server.streamable_http_app(host="127.0.0.1")
+    async with app.router.lifespan_context(app):
+        http = httpx2.AsyncClient(transport=httpx2.ASGITransport(app=app), base_url=BASE_URL)
+        try:
+            transport = streamable_http_client(f"{BASE_URL}/mcp", http_client=http)
+            async with Client(transport) as client:
+                names = sorted(tool.name for tool in (await client.list_tools()).tools)
+                result = await client.call_tool("word_count", {"text": "a b c d"})
+                assert result.structured_content is not None
+                return names, result.structured_content["result"], result.is_error
+        finally:
+            await http.aclose()
+
+
+def test_http_app_lists_and_calls_the_tools() -> None:
+    names, count, is_error = asyncio.run(_with_http_client())
+    assert names == ["convert_units", "word_count"]
+    assert count == 4
+    assert is_error is False
+
+
+def test_settings_default_to_localhost_and_port_8000(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MCP_HOST", raising=False)
+    monkeypatch.delenv("MCP_PORT", raising=False)
+    assert settings_from_env() == ("127.0.0.1", 8000)
+
+
+def test_settings_read_host_and_port_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_HOST", "127.0.0.2")
+    monkeypatch.setenv("MCP_PORT", "9100")
+    assert settings_from_env() == ("127.0.0.2", 9100)
+
+
+def test_invalid_port_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_PORT", "http")
+    with pytest.raises(SystemExit, match="MCP_PORT must be an integer"):
+        settings_from_env()
