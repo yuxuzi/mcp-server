@@ -2,4 +2,6 @@ contract = 1
 id = "mcp-server"
 name = "MCP servers"
 description = "Model Context Protocol servers in Python that expose your own functions as typed tools to AI clients, with tests that call them in process."
-version = "1.0.0"
+version = "1.1.0"
+categories = ["ai"]
+keywords = ["mcp", "agent", "tools", "llm", "claude", "model context protocol"]

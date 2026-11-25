@@ -36,8 +36,12 @@ Both profiles declare `mcp>=2.3,<3` and Python 3.11 or later.
 ## Create a project
 
 ```bash
-uvx pytemplate-uv@latest create my-app -p tools --template gh:yuxuzi/mcp-server --template-ref v1.0.0 -y
+uvx pytemplate-uv@latest create my-app -p tools -h yuxuzi/mcp-server@v1.1.0 -y
 ```
+
+`-h` (`--hub`, pytemplate-uv 3.5 or later) reads the commit and digest that
+[pytemplate-hub](https://yuxuzi.github.io/pytemplate-hub/) checked for this tag, and refuses the pack if
+anything changed. For CI or offline use, copy the fully pinned command from the pack's listing there.
 
 For HTTP, use `-p tools-http`. The hub's listing page adds `--template-commit` and `--template-digest` to pin the exact pack contents.
 
